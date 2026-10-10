@@ -1,0 +1,19 @@
+# Arduino 编译临时文件
+build/
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.eep
+
+# 编辑器临时文件
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+.idea/
