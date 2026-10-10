@@ -154,11 +154,89 @@ void servoCmd(char servoName, int toPos, int servoDelay) {
 }
 
 // ============================================================
+// 多舵机协同控制（x,y,z 同步移动）
+// x = 底座, y = 大臂, z = 小臂
+// 指令格式：x10,y30,z20
+// ============================================================
+void servoSyncCmd(int xTarget, int yTarget, int zTarget, int servoDelay) {
+  int fromX = base.read();
+  int fromY = rArm.read();
+  int fromZ = fArm.read();
+
+  // 范围检查
+  if (xTarget < baseMin || xTarget > baseMax) {
+    Serial.println("+Warning:X(Base) Out Of Limit!");
+    return;
+  }
+  if (yTarget < rArmMin || yTarget > rArmMax) {
+    Serial.println("+Warning:Y(rArm) Out Of Limit!");
+    return;
+  }
+  if (zTarget < fArmMin || zTarget > fArmMax) {
+    Serial.println("+Warning:Z(fArm) Out Of Limit!");
+    return;
+  }
+
+  // 计算每个舵机需要走的步数（绝对值）
+  int stepsX = abs(xTarget - fromX);
+  int stepsY = abs(yTarget - fromY);
+  int stepsZ = abs(zTarget - fromZ);
+
+  // 总步数 = 走得最多的那个（决定运动时间）
+  int totalSteps = stepsX;
+  if (stepsY > totalSteps) totalSteps = stepsY;
+  if (stepsZ > totalSteps) totalSteps = stepsZ;
+
+  // 三个舵机都不动
+  if (totalSteps == 0) {
+    Serial.println("+Sync: Already at target.");
+    return;
+  }
+
+  Serial.println("");
+  Serial.print("+Sync Move: X=");
+  Serial.print(xTarget);
+  Serial.print(" Y=");
+  Serial.print(yTarget);
+  Serial.print(" Z=");
+  Serial.print(zTarget);
+  Serial.print("  steps=");
+  Serial.println(totalSteps);
+  Serial.println("");
+
+  // 逐步移动，每一步三个舵机各走一点点，同时到达
+  for (int i = 1; i <= totalSteps; i++) {
+    // 按比例计算当前位置（线性插值）
+    int posX = fromX + (long)(xTarget - fromX) * i / totalSteps;
+    int posY = fromY + (long)(yTarget - fromY) * i / totalSteps;
+    int posZ = fromZ + (long)(zTarget - fromZ) * i / totalSteps;
+
+    base.write(posX);
+    rArm.write(posY);
+    fArm.write(posZ);
+
+    delay(servoDelay);
+  }
+}
+
+
+// ============================================================
 // 解析串口指令
 // ============================================================
 void armDataCmd(char serialCmd) {
+  // 如果是 x，说明是多舵机协同指令：x10,y30,z20
+  if (serialCmd == 'x') {
+    int xVal = Serial.parseInt();  // 读 x 后面的数（到逗号为止）
+    Serial.read();                  // 跳过逗号 ','
+    Serial.read();                  // 跳过 'y'
+    int yVal = Serial.parseInt();  // 读 y 后面的数
+    Serial.read();                  // 跳过逗号 ','
+    Serial.read();                  // 跳过 'z'
+    int zVal = Serial.parseInt();  // 读 z 后面的数
+    servoSyncCmd(xVal, yVal, zVal, DSD);
+  }
   // 如果是 b/c/f/r，说明后面跟着角度数字
-  if (serialCmd == 'b' || serialCmd == 'c' || serialCmd == 'f' || serialCmd == 'r') {
+  else if (serialCmd == 'b' || serialCmd == 'c' || serialCmd == 'f' || serialCmd == 'r') {
     int servoData = Serial.parseInt();       // 读取后面的数字
     servoCmd(serialCmd, servoData, DSD);     // 调用舵机移动
   }
