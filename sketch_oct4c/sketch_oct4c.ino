@@ -22,6 +22,56 @@ const int joyR_Y = A3;   // 右摇杆Y → 夹爪
 const int joyDeadzone = 50;   // 摇杆死区（中间位置不响应的范围）
 const int joyStep = 1;        // 每次摇杆移动的角度步长
 
+// ============================================================
+// 任务二：A/B/C 物体搬运动作序列
+// 每个数组 8 行 × 4 列
+// 列顺序：{底座, 大臂, 小臂, 夹爪}
+// 行顺序：1.移到物体上方 2.下降 3.夹爪闭合 4.抬起
+//         5.移到放置点上方 6.下降 7.夹爪张开 8.回中
+// ⚠️ 角度是占位值，需要实际调试后替换！
+// 调试方法：用 b/r/f/c 指令摆好位置，再用 o 查看角度，填到这里
+// ============================================================
+
+// 夹爪角度（按最大范围，需要实际调试）
+const int clawOpen = 10;    // 夹爪张开角度
+const int clawClose = 100;  // 夹爪闭合角度
+
+// ====== 物体A搬运动作（硬币） ======
+int actionA[8][4] = {
+  { 90, 100, 80, clawOpen},     // 1. 移到A上方
+  { 90, 130, 50, clawOpen},     // 2. 下降到A
+  { 90, 130, 50, clawClose},    // 3. 夹爪闭合
+  { 90, 100, 80, clawClose},    // 4. 抬起
+  { 60, 100, 80, clawClose},    // 5. 移到A放置点上方
+  { 60, 130, 50, clawClose},    // 6. 下降
+  { 60, 130, 50, clawOpen},     // 7. 夹爪张开
+  { 90, 90,  90, clawOpen},      // 8. 回中
+};
+
+// ====== 物体B搬运动作（笔） ======
+int actionB[8][4] = {
+  { 70, 100, 80, clawOpen},     // 1. 移到B上方
+  { 70, 130, 50, clawOpen},     // 2. 下降到B
+  { 70, 130, 50, clawClose},    // 3. 夹爪闭合
+  { 70, 100, 80, clawClose},    // 4. 抬起
+  { 40, 100, 80, clawClose},    // 5. 移到B放置点上方
+  { 40, 130, 50, clawClose},    // 6. 下降
+  { 40, 130, 50, clawOpen},     // 7. 夹爪张开
+  { 90, 90,  90, clawOpen},      // 8. 回中
+};
+
+// ====== 物体C搬运动作（自定义物体） ======
+int actionC[8][4] = {
+  { 110, 100, 80, clawOpen},    // 1. 移到C上方
+  { 110, 130, 50, clawOpen},    // 2. 下降到C
+  { 110, 130, 50, clawClose},   // 3. 夹爪闭合
+  { 110, 100, 80, clawClose},   // 4. 抬起
+  { 120, 100, 80, clawClose},   // 5. 移到C放置点上方
+  { 120, 130, 50, clawClose},   // 6. 下降
+  { 120, 130, 50, clawOpen},    // 7. 夹爪张开
+  { 90, 90,  90, clawOpen},      // 8. 回中
+};
+
 void setup() {
   base.attach(2);  //填入你实际接的引脚
   delay(200);
@@ -42,7 +92,8 @@ void setup() {
   delay(10);
 
   Serial.begin(9600);
-  Serial.println("Robot Arm Start");
+  Serial.println("Robot Arm Start - Task2 Ready");
+  Serial.println("Commands: b/r/f/c+angle | x,y,z | A/B/C | o | h/l");
 }
 
 // ============================================================
@@ -55,7 +106,6 @@ void servoCmd(char servoName, int toPos, int servoDelay) {
   int fromPos;  // 当前角度
   int i;
 
-  // 串口输出确认信息
   Serial.println("");
   Serial.print("+Command:Servo");
   Serial.print(servoName);
@@ -64,10 +114,8 @@ void servoCmd(char servoName, int toPos, int servoDelay) {
   Serial.print(" at servoDelay value ");
   Serial.print(servoDelay);
   Serial.println(".");
-  Serial.println("");
 
   switch (servoName) {
-    // ====== 底座 ======
     case 'b':
       if (toPos < baseMin || toPos > baseMax) {
         Serial.println("+Warning:Base Servo Value Out Of Limit!");
@@ -75,19 +123,12 @@ void servoCmd(char servoName, int toPos, int servoDelay) {
       }
       fromPos = base.read();
       if (fromPos <= toPos) {
-        for (i = fromPos; i <= toPos; i++) {
-          base.write(i);
-          delay(servoDelay);
-        }
+        for (i = fromPos; i <= toPos; i++) { base.write(i); delay(servoDelay); }
       } else {
-        for (i = fromPos; i >= toPos; i--) {
-          base.write(i);
-          delay(servoDelay);
-        }
+        for (i = fromPos; i >= toPos; i--) { base.write(i); delay(servoDelay); }
       }
       break;
 
-    // ====== 夹爪 ======
     case 'c':
       if (toPos < clawMin || toPos > clawMax) {
         Serial.println("+Warning:Claw Servo Value Out Of Limit!");
@@ -95,19 +136,12 @@ void servoCmd(char servoName, int toPos, int servoDelay) {
       }
       fromPos = claw.read();
       if (fromPos <= toPos) {
-        for (i = fromPos; i <= toPos; i++) {
-          claw.write(i);
-          delay(servoDelay);
-        }
+        for (i = fromPos; i <= toPos; i++) { claw.write(i); delay(servoDelay); }
       } else {
-        for (i = fromPos; i >= toPos; i--) {
-          claw.write(i);
-          delay(servoDelay);
-        }
+        for (i = fromPos; i >= toPos; i--) { claw.write(i); delay(servoDelay); }
       }
       break;
 
-    // ====== 小臂 ======
     case 'f':
       if (toPos < fArmMin || toPos > fArmMax) {
         Serial.println("+Warning:fArm Servo Value Out Of Limit!");
@@ -115,19 +149,12 @@ void servoCmd(char servoName, int toPos, int servoDelay) {
       }
       fromPos = fArm.read();
       if (fromPos <= toPos) {
-        for (i = fromPos; i <= toPos; i++) {
-          fArm.write(i);
-          delay(servoDelay);
-        }
+        for (i = fromPos; i <= toPos; i++) { fArm.write(i); delay(servoDelay); }
       } else {
-        for (i = fromPos; i >= toPos; i--) {
-          fArm.write(i);
-          delay(servoDelay);
-        }
+        for (i = fromPos; i >= toPos; i--) { fArm.write(i); delay(servoDelay); }
       }
       break;
 
-    // ====== 大臂 ======
     case 'r':
       if (toPos < rArmMin || toPos > rArmMax) {
         Serial.println("+Warning:rArm Servo Value Out Of Limit!");
@@ -135,15 +162,9 @@ void servoCmd(char servoName, int toPos, int servoDelay) {
       }
       fromPos = rArm.read();
       if (fromPos <= toPos) {
-        for (i = fromPos; i <= toPos; i++) {
-          rArm.write(i);
-          delay(servoDelay);
-        }
+        for (i = fromPos; i <= toPos; i++) { rArm.write(i); delay(servoDelay); }
       } else {
-        for (i = fromPos; i >= toPos; i--) {
-          rArm.write(i);
-          delay(servoDelay);
-        }
+        for (i = fromPos; i >= toPos; i--) { rArm.write(i); delay(servoDelay); }
       }
       break;
 
@@ -156,94 +177,105 @@ void servoCmd(char servoName, int toPos, int servoDelay) {
 // ============================================================
 // 多舵机协同控制（x,y,z 同步移动）
 // x = 底座, y = 大臂, z = 小臂
-// 指令格式：x10,y30,z20
 // ============================================================
 void servoSyncCmd(int xTarget, int yTarget, int zTarget, int servoDelay) {
   int fromX = base.read();
   int fromY = rArm.read();
   int fromZ = fArm.read();
 
-  // 范围检查
-  if (xTarget < baseMin || xTarget > baseMax) {
-    Serial.println("+Warning:X(Base) Out Of Limit!");
-    return;
-  }
-  if (yTarget < rArmMin || yTarget > rArmMax) {
-    Serial.println("+Warning:Y(rArm) Out Of Limit!");
-    return;
-  }
-  if (zTarget < fArmMin || zTarget > fArmMax) {
-    Serial.println("+Warning:Z(fArm) Out Of Limit!");
-    return;
-  }
+  if (xTarget < baseMin || xTarget > baseMax) { Serial.println("+Warning:X Out Of Limit!"); return; }
+  if (yTarget < rArmMin || yTarget > rArmMax) { Serial.println("+Warning:Y Out Of Limit!"); return; }
+  if (zTarget < fArmMin || zTarget > fArmMax) { Serial.println("+Warning:Z Out Of Limit!"); return; }
 
-  // 计算每个舵机需要走的步数（绝对值）
   int stepsX = abs(xTarget - fromX);
   int stepsY = abs(yTarget - fromY);
   int stepsZ = abs(zTarget - fromZ);
 
-  // 总步数 = 走得最多的那个（决定运动时间）
   int totalSteps = stepsX;
   if (stepsY > totalSteps) totalSteps = stepsY;
   if (stepsZ > totalSteps) totalSteps = stepsZ;
 
-  // 三个舵机都不动
-  if (totalSteps == 0) {
-    Serial.println("+Sync: Already at target.");
-    return;
-  }
+  if (totalSteps == 0) { Serial.println("+Sync: Already at target."); return; }
 
-  Serial.println("");
-  Serial.print("+Sync Move: X=");
-  Serial.print(xTarget);
-  Serial.print(" Y=");
-  Serial.print(yTarget);
-  Serial.print(" Z=");
-  Serial.print(zTarget);
-  Serial.print("  steps=");
-  Serial.println(totalSteps);
-  Serial.println("");
-
-  // 逐步移动，每一步三个舵机各走一点点，同时到达
   for (int i = 1; i <= totalSteps; i++) {
-    // 按比例计算当前位置（线性插值）
     int posX = fromX + (long)(xTarget - fromX) * i / totalSteps;
     int posY = fromY + (long)(yTarget - fromY) * i / totalSteps;
     int posZ = fromZ + (long)(zTarget - fromZ) * i / totalSteps;
-
     base.write(posX);
     rArm.write(posY);
     fArm.write(posZ);
-
     delay(servoDelay);
   }
 }
 
+// ============================================================
+// 任务二：物体搬运函数
+// action: 8行4列的二维数组，每行是一个阶段的4个舵机角度
+// 顺序：{底座, 大臂, 小臂, 夹爪}
+// ============================================================
+void pickAndPlace(int action[8][4], const char* name) {
+  Serial.println("");
+  Serial.print("===== Pick & Place: ");
+  Serial.print(name);
+  Serial.println(" =====");
+
+  for (int step = 0; step < 8; step++) {
+    Serial.print("Step ");
+    Serial.print(step + 1);
+    Serial.print("/8  b=");
+    Serial.print(action[step][0]);
+    Serial.print(" r=");
+    Serial.print(action[step][1]);
+    Serial.print(" f=");
+    Serial.print(action[step][2]);
+    Serial.print(" c=");
+    Serial.println(action[step][3]);
+
+    // 用 servoSyncCmd 同步移动底座、大臂、小臂
+    servoSyncCmd(action[step][0], action[step][1], action[step][2], DSD);
+
+    // 夹爪单独控制（夹爪动作要和三个舵机分开，避免同时动影响抓取）
+    servoCmd('c', action[step][3], DSD);
+
+    delay(300);  // 每个阶段之间停300ms
+  }
+
+  Serial.println("===== Pick & Place Done =====");
+  Serial.println("");
+}
 
 // ============================================================
 // 解析串口指令
 // ============================================================
 void armDataCmd(char serialCmd) {
-  // 如果是 x，说明是多舵机协同指令：x10,y30,z20
+  // 多舵机协同指令：x10,y30,z20
   if (serialCmd == 'x') {
-    int xVal = Serial.parseInt();  // 读 x 后面的数（到逗号为止）
-    Serial.read();                  // 跳过逗号 ','
-    Serial.read();                  // 跳过 'y'
-    int yVal = Serial.parseInt();  // 读 y 后面的数
-    Serial.read();                  // 跳过逗号 ','
-    Serial.read();                  // 跳过 'z'
-    int zVal = Serial.parseInt();  // 读 z 后面的数
+    int xVal = Serial.parseInt();
+    Serial.read(); Serial.read();
+    int yVal = Serial.parseInt();
+    Serial.read(); Serial.read();
+    int zVal = Serial.parseInt();
     servoSyncCmd(xVal, yVal, zVal, DSD);
   }
-  // 如果是 b/c/f/r，说明后面跟着角度数字
+  // 单舵机指令：b/c/f/r + 数字
   else if (serialCmd == 'b' || serialCmd == 'c' || serialCmd == 'f' || serialCmd == 'r') {
-    int servoData = Serial.parseInt();       // 读取后面的数字
-    servoCmd(serialCmd, servoData, DSD);     // 调用舵机移动
+    int servoData = Serial.parseInt();
+    servoCmd(serialCmd, servoData, DSD);
+  }
+  // 任务二：物体搬运指令
+  else if (serialCmd == 'A') {
+    pickAndPlace(actionA, "A");
+  }
+  else if (serialCmd == 'B') {
+    pickAndPlace(actionB, "B");
+  }
+  else if (serialCmd == 'C') {
+    pickAndPlace(actionC, "C");
   }
   // 其他单字符指令
   else {
     switch (serialCmd) {
-      case 'o':  // 输出所有舵机当前角度
+      case 'o':
         Serial.println("--- Status ---");
         Serial.print("Base: ");  Serial.println(base.read());
         Serial.print("rArm: ");  Serial.println(rArm.read());
@@ -252,19 +284,19 @@ void armDataCmd(char serialCmd) {
         Serial.println("--------------");
         break;
 
-      case 'h':  // 加速（减小延时）
+      case 'h':
         if (DSD > 1) DSD--;
         Serial.print("Speed up, DSD = ");
         Serial.println(DSD);
         break;
 
-      case 'l':  // 减速（增大延时）
+      case 'l':
         if (DSD < 50) DSD++;
         Serial.print("Speed down, DSD = ");
         Serial.println(DSD);
         break;
 
-      default:  // 未知指令
+      default:
         Serial.println("Unknown command");
         break;
     }
@@ -272,92 +304,44 @@ void armDataCmd(char serialCmd) {
 }
 
 // ============================================================
-// 摇杆控制 - 底座（左摇杆左右）
+// 摇杆控制函数
 // ============================================================
 void joyBaseControl() {
   int joyVal = analogRead(joyL_X);
   int currentPos = base.read();
   int targetPos = currentPos;
-
-  if (joyVal > 512 + joyDeadzone) {         // 向右扳
-    targetPos = currentPos + joyStep;
-    if (targetPos > baseMax) targetPos = baseMax;
-  } else if (joyVal < 512 - joyDeadzone) {  // 向左扳
-    targetPos = currentPos - joyStep;
-    if (targetPos < baseMin) targetPos = baseMin;
-  }
-
-  if (targetPos != currentPos) {
-    servoCmd('b', targetPos, DSD);
-  }
+  if (joyVal > 512 + joyDeadzone) { targetPos = currentPos + joyStep; if (targetPos > baseMax) targetPos = baseMax; }
+  else if (joyVal < 512 - joyDeadzone) { targetPos = currentPos - joyStep; if (targetPos < baseMin) targetPos = baseMin; }
+  if (targetPos != currentPos) servoCmd('b', targetPos, DSD);
 }
 
-// ============================================================
-// 摇杆控制 - 大臂（左摇杆前后）
-// ============================================================
 void joyRArmControl() {
   int joyVal = analogRead(joyL_Y);
   int currentPos = rArm.read();
   int targetPos = currentPos;
-
-  if (joyVal > 512 + joyDeadzone) {         // 向前推 → 大臂落下
-    targetPos = currentPos - joyStep;
-    if (targetPos < rArmMin) targetPos = rArmMin;
-  } else if (joyVal < 512 - joyDeadzone) {  // 向后拉 → 大臂抬起
-    targetPos = currentPos + joyStep;
-    if (targetPos > rArmMax) targetPos = rArmMax;
-  }
-
-  if (targetPos != currentPos) {
-    servoCmd('r', targetPos, DSD);
-  }
+  if (joyVal > 512 + joyDeadzone) { targetPos = currentPos - joyStep; if (targetPos < rArmMin) targetPos = rArmMin; }
+  else if (joyVal < 512 - joyDeadzone) { targetPos = currentPos + joyStep; if (targetPos > rArmMax) targetPos = rArmMax; }
+  if (targetPos != currentPos) servoCmd('r', targetPos, DSD);
 }
 
-// ============================================================
-// 摇杆控制 - 小臂（右摇杆左右）
-// ============================================================
 void joyFArmControl() {
   int joyVal = analogRead(joyR_X);
   int currentPos = fArm.read();
   int targetPos = currentPos;
-
-  if (joyVal > 512 + joyDeadzone) {         // 向右扳 → 小臂伸出
-    targetPos = currentPos + joyStep;
-    if (targetPos > fArmMax) targetPos = fArmMax;
-  } else if (joyVal < 512 - joyDeadzone) {  // 向左扳 → 小臂收回
-    targetPos = currentPos - joyStep;
-    if (targetPos < fArmMin) targetPos = fArmMin;
-  }
-
-  if (targetPos != currentPos) {
-    servoCmd('f', targetPos, DSD);
-  }
+  if (joyVal > 512 + joyDeadzone) { targetPos = currentPos + joyStep; if (targetPos > fArmMax) targetPos = fArmMax; }
+  else if (joyVal < 512 - joyDeadzone) { targetPos = currentPos - joyStep; if (targetPos < fArmMin) targetPos = fArmMin; }
+  if (targetPos != currentPos) servoCmd('f', targetPos, DSD);
 }
 
-// ============================================================
-// 摇杆控制 - 夹爪（右摇杆前后）
-// ============================================================
 void joyClawControl() {
   int joyVal = analogRead(joyR_Y);
   int currentPos = claw.read();
   int targetPos = currentPos;
-
-  if (joyVal > 512 + joyDeadzone) {         // 向前推 → 张开
-    targetPos = currentPos + joyStep;
-    if (targetPos > clawMax) targetPos = clawMax;
-  } else if (joyVal < 512 - joyDeadzone) {  // 向后拉 → 闭合
-    targetPos = currentPos - joyStep;
-    if (targetPos < clawMin) targetPos = clawMin;
-  }
-
-  if (targetPos != currentPos) {
-    servoCmd('c', targetPos, DSD);
-  }
+  if (joyVal > 512 + joyDeadzone) { targetPos = currentPos + joyStep; if (targetPos > clawMax) targetPos = clawMax; }
+  else if (joyVal < 512 - joyDeadzone) { targetPos = currentPos - joyStep; if (targetPos < clawMin) targetPos = clawMin; }
+  if (targetPos != currentPos) servoCmd('c', targetPos, DSD);
 }
 
-// ============================================================
-// 摇杆控制总函数
-// ============================================================
 void joystickControl() {
   joyBaseControl();
   joyRArmControl();
@@ -373,6 +357,5 @@ void loop() {
     char serialCmd = Serial.read();
     armDataCmd(serialCmd);
   }
-
-  joystickControl();   // 摇杆控制
+  joystickControl();
 }
