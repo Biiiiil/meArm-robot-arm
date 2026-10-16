@@ -476,7 +476,7 @@ void stopRec() {
   Serial.print("Record End: "); Serial.print(recordCount); Serial.println(" pts");
   int sec = (recordCount * RECORD_INTERVAL) / 1000;
   Serial.print("Time: "); Serial.print(sec); Serial.println("s");
-  if (sec < 10) Serial.println("Warn: <10s");
+  if (sec < 3) Serial.println("Warn: <3s");
 }
 void recordUpdate() {
   if (!isRecording) return;
